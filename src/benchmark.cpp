@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <cmath>
 #include <iostream>
@@ -10,7 +11,7 @@
 #include "multipliers.hpp"
 
 #define WARMUP_OPERATIONS 100000
-#define BENCHMARK_REPETITIONS 10
+#define BENCHMARK_REPETITIONS 1
 
 struct BenchmarkConfiguration {
     // Configuration fields
@@ -25,27 +26,26 @@ struct BenchmarkConfiguration {
     std::vector<uint64_t> times;
 
     BenchmarkConfiguration(const uint32_t n, const uint32_t m, const uint32_t num_threads,
-                           IMatrixVectorAllocator::SharedPtr allocator)
-        : n(n), m(m), num_threads(num_threads), allocator(allocator) {}
-
-    std::string toString() const {}
+                           IMatrixVectorAllocator::SharedPtr allocator, IMultiplier::SharedPtr multiplier)
+        : n(n), m(m), num_threads(num_threads), allocator(allocator), multiplier(multiplier) {}
 
     std::string toCsv() const {
         auto meanStdDev = getMeanAndStdDev<uint64_t, float>(times);
 
         return std::to_string(n) + ',' + std::to_string(m) + ',' + std::to_string(num_threads) + ',' +
-               allocator->getName() + ',' + std::to_string(repetitions) + ',' + std::to_string(meanStdDev.first) + ',' +
-               std::to_string(meanStdDev.second);
+               allocator->getName() + ',' + multiplier->getName() + ',' + std::to_string(repetitions) + ',' +
+               std::to_string(meanStdDev.first) + ',' + std::to_string(meanStdDev.second);
     };
 };
 
-const std::vector<uint32_t> n_options{10, 100, 1000, 10000, 10000};
-const std::vector<uint32_t> m_options{10, 100, 1000, 10000, 10000};
+const std::vector<uint32_t> n_options{1, 10, 100, 1000, 10000, 100000};
+const std::vector<uint32_t> m_options{1, 10, 100, 1000, 10000};
 const std::vector<uint32_t> num_threads_options{1, 2, 4, 8, 16, 32, 64, 128};
 
 int main(int argc, char** argv) {
     std::vector<IMatrixVectorAllocator::SharedPtr> allocators{
         std::make_shared<DisjointMemoryAllocator>(),
+        std::make_shared<DisjointRowMemoryAllocator>(),
     };
 
     std::vector<IMultiplier::SharedPtr> multipliers{std::make_shared<RowColumnMultiplier>(),
@@ -75,13 +75,21 @@ int main(int argc, char** argv) {
         const uint32_t n = configuration.n;
         const uint32_t m = configuration.m;
 
-        for (uint32_t iteration = 0; iteration < configuration.repetitions; iteration++) {
-            float** mtx;
-            float* v;
-            float* x;
-            configuration.allocator->allocate(n, m, mtx, v, x);
-            const uint64_t time = configuration.multiplier->multiply(n, m, mtx, v, x);
+        // Warmup with some garbage computation
+        uint32_t q = 1;
+        for (uint32_t i = 1; i < WARMUP_OPERATIONS; i++) {
+            q *= i;
+        };
 
+        for (uint32_t iteration = 0; iteration < configuration.repetitions; iteration++) {
+            float** matrix;
+            float* vector;
+            float* output;
+
+            configuration.allocator->allocate(n, m, matrix, vector, output);
+            const uint64_t time =
+                configuration.multiplier->multiply(n, m, configuration.num_threads, matrix, vector, output);
+            configuration.allocator->free(n, m, matrix, vector, output);
             configuration.times.push_back(time);
         }
 

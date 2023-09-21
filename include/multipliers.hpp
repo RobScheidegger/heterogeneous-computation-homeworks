@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <chrono>
+#include <iostream>
 #include <memory>
 #include <string>
 
@@ -10,34 +11,56 @@ class IMultiplier {
    public:
     typedef std::shared_ptr<IMultiplier> SharedPtr;
 
-    virtual uint64_t multiply(const uint32_t n, const uint32_t m, float** matrix, float* vector,
-                              float* output) const = 0;
+    virtual uint64_t multiply(const uint32_t n, const uint32_t m, const uint8_t n_threads, float** matrix,
+                              float* vector, float* output) const = 0;
 
     virtual std::string getName() const = 0;
 };
 
 class RowColumnMultiplier : public IMultiplier {
-    uint64_t multiply(const uint32_t n, const uint32_t m, float** matrix, float* vector, float* output) const override {
+   public:
+    uint64_t multiply(const uint32_t n, const uint32_t m, const uint8_t n_threads, float** matrix, float* vector,
+                      float* output) const override {
 
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-        // Get the time
+// Get the time
+#pragma omp parallel for num_threads(n_threads)
         for (uint32_t i = 0; i < n; i++) {
+            output[i] = 0;
             for (uint32_t j = 0; j < m; j++) {
                 output[i] += matrix[i][j] * vector[j];
             }
         }
         // Return the time difference
-        std::chrono::steady_clock::time_point endLine = std::chrono::steady_clock::now();
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-        return std::chrono::duration_cast
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
     }
 
-    std::string getName() const override { return "RowColumnMultiplier"; }
+    std::string getName() const override {
+        return "RowColumnMultiplier";
+    }
 };
 
 class ColumnRowMultiplier : public IMultiplier {
-    uint64_t multiply(const uint32_t n, const uint32_t m, float** matrix, float* vector, float* output) const override {
+   public:
+    uint64_t multiply(const uint32_t n, const uint32_t m, const uint8_t n_threads, float** matrix, float* vector,
+                      float* output) const override {
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+        // Get the time
+#pragma omp parallel for num_threads(n_threads)
+        for (uint32_t j = 0; j < m; j++) {
+            for (uint32_t i = 0; i < n; i++) {
+                output[i] += matrix[i][j] * vector[j];
+            }
+        }
+        // Return the time difference
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
     }
 
-    std::string getName() const override { return "ColumnRowMultiplier"; }
+    std::string getName() const override {
+        return "ColumnRowMultiplier";
+    }
 };

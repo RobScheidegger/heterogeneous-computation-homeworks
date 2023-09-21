@@ -12,3 +12,5 @@ _deps
 
 benchmark
 .vscode
+**/*.a
+hw1_tests*
