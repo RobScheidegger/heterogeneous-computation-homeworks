@@ -39,8 +39,8 @@ struct BenchmarkConfiguration {
 };
 
 const std::vector<uint32_t> n_options{1, 10, 100, 1000, 10000, 100000};
-const std::vector<uint32_t> m_options{1, 10, 100, 1000, 10000};
-const std::vector<uint32_t> num_threads_options{1, 2, 4, 8, 16, 32, 64, 128};
+const std::vector<uint32_t> m_options{1, 10, 100, 1000, 10000, 100000};
+const std::vector<uint32_t> num_threads_options{1, 2, 4, 8, 16, 32, 64};
 
 int main(int argc, char** argv) {
     std::vector<IMatrixVectorAllocator::SharedPtr> allocators{
@@ -86,7 +86,9 @@ int main(int argc, char** argv) {
             float* vector;
             float* output;
 
-            configuration.allocator->allocate(n, m, matrix, vector, output);
+            if (!configuration.allocator->allocate(n, m, matrix, vector, output))
+                continue;
+
             const uint64_t time =
                 configuration.multiplier->multiply(n, m, configuration.num_threads, matrix, vector, output);
             configuration.allocator->free(n, m, matrix, vector, output);

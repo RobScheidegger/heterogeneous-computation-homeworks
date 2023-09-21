@@ -10,7 +10,7 @@ class IMatrixVectorAllocator {
    public:
     typedef std::shared_ptr<IMatrixVectorAllocator> SharedPtr;
 
-    virtual void allocate(const uint32_t n, const uint32_t m, float**& matrix, float*& vector,
+    virtual bool allocate(const uint32_t n, const uint32_t m, float**& matrix, float*& vector,
                           float*& output) const = 0;
 
     virtual void free(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const = 0;
@@ -20,7 +20,11 @@ class IMatrixVectorAllocator {
 
 /// @brief Allocates the matrix in one contiguous block of memory, and the vector/outputs in their own blocks.
 class DisjointMemoryAllocator : public IMatrixVectorAllocator {
-    void allocate(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const override {
+    bool allocate(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const override {
+
+        if (n * m > 1 << 30) {
+            return false;
+        }
 
         vector = new float[m];
         output = new float[n];
@@ -29,6 +33,8 @@ class DisjointMemoryAllocator : public IMatrixVectorAllocator {
         matrix[0] = new float[n * m];
         for (uint32_t i = 0; i < n; i++)
             matrix[i] = &matrix[0][i * m];
+
+        return true;
     }
 
     void free(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const override {
@@ -43,7 +49,10 @@ class DisjointMemoryAllocator : public IMatrixVectorAllocator {
 
 /// @brief Allocates each row of the matrix in its own contiguous block of memory, and the vector/outputs in their own
 class DisjointRowMemoryAllocator : public IMatrixVectorAllocator {
-    void allocate(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const override {
+    bool allocate(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const override {
+        if (n * m > 1 << 30) {
+            return false;
+        }
 
         vector = new float[m];
         output = new float[n];
@@ -51,9 +60,12 @@ class DisjointRowMemoryAllocator : public IMatrixVectorAllocator {
         matrix = new float*[n];
         for (uint32_t i = 0; i < n; i++)
             matrix[i] = new float[m];
+
+        return true;
     }
 
     void free(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const override {
+
         delete[] vector;
         delete[] output;
 
@@ -67,7 +79,10 @@ class DisjointRowMemoryAllocator : public IMatrixVectorAllocator {
 
 /// @brief Memory allocator that allocates all of the different blocks in a _single_ contiguous memory block.
 class ContiguousMemoryAllocator : public IMatrixVectorAllocator {
-    void allocate(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const override {
+    bool allocate(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const override {
+        if (n * m > 1 << 30) {
+            return false;
+        }
 
         const uint64_t size = n * sizeof(float*) + (n * m + m + n) * sizeof(float);
         float* global = (float*)malloc(size);
@@ -80,6 +95,8 @@ class ContiguousMemoryAllocator : public IMatrixVectorAllocator {
 
         vector = data_start + n * m;
         output = vector + m;
+
+        return true;
     }
 
     void free(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const override {
@@ -91,9 +108,13 @@ class ContiguousMemoryAllocator : public IMatrixVectorAllocator {
 
 /// @brief Memory allocator that uses mmap to allocate all of the different blocks in a _single_ contiguous memory block.
 class MmapMemoryAllocator : public IMatrixVectorAllocator {
-    void allocate(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const override {
+    bool allocate(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const override {
         const uint64_t size = n * sizeof(float*) + (n * m + m + n) * sizeof(float);
         void* vmem_region = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+        if (vmem_region == MAP_FAILED) {
+            return false;
+        }
 
         matrix = (float**)vmem_region;
         float* data_start = (float*)(vmem_region + n * sizeof(float*));
@@ -102,6 +123,8 @@ class MmapMemoryAllocator : public IMatrixVectorAllocator {
             matrix[i] = &matrix[0][i * m];
         vector = data_start + n * m;
         output = vector + m;
+
+        return true;
     }
 
     void free(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const override {

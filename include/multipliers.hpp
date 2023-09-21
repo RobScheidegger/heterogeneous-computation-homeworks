@@ -23,10 +23,9 @@ class RowColumnMultiplier : public IMultiplier {
                       float* output) const override {
 
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-// Get the time
-#pragma omp parallel for num_threads(n_threads)
+
+#pragma omp parallel for num_threads(n_threads) collapse(2)
         for (uint32_t i = 0; i < n; i++) {
-            output[i] = 0;
             for (uint32_t j = 0; j < m; j++) {
                 output[i] += matrix[i][j] * vector[j];
             }
@@ -48,7 +47,7 @@ class ColumnRowMultiplier : public IMultiplier {
                       float* output) const override {
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         // Get the time
-#pragma omp parallel for num_threads(n_threads)
+#pragma omp parallel for num_threads(n_threads) collapse(2)
         for (uint32_t j = 0; j < m; j++) {
             for (uint32_t i = 0; i < n; i++) {
                 output[i] += matrix[i][j] * vector[j];
