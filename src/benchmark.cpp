@@ -39,7 +39,7 @@ struct BenchmarkConfiguration {
 };
 
 const std::vector<uint32_t> n_options{1, 10, 100, 1000, 10000, 100000};
-const std::vector<uint32_t> m_options{1, 10, 100, 1000, 10000, 100000};
+const std::vector<uint32_t> m_options{1, 10, 100, 1000, 10000, 10000};
 const std::vector<uint32_t> num_threads_options{1, 2, 4, 8, 16, 32, 64};
 
 int main(int argc, char** argv) {
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
 
     if (argc == 2 && std::string(argv[1]) == "--simple") {
         std::cout << "Running simple mode..." << std::endl;
-        configurations.emplace_back(100000, 100000, 16, std::make_shared<MmapMemoryAllocator>(),
+        configurations.emplace_back(100000, 10000, 16, std::make_shared<MmapMemoryAllocator>(),
                                     std::make_shared<RowColumnMultiplier>());
     } else {
         // Make all of the required configurations
