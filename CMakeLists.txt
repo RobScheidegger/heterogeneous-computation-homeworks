@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
+set(CMAKE_CXX_COMPILER "/gpfs/runtime/opt/intel/2017.0/bin/icc")
 # This is your project statement. You should always list languages;
 # Listing the version is nice here since it sets lots of useful variables
 project(
@@ -22,17 +23,16 @@ include_directories(include)
 add_executable(benchmark src/benchmark.cpp)
 
 # Add tests
-include(FetchContent)
-FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-)
-FetchContent_MakeAvailable(googletest)
+# include(FetchContent)
+# FetchContent_Declare(
+#  googletest
+#  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+#)
+#FetchContent_MakeAvailable(googletest)
 
-enable_testing()
+#enable_testing()
 
-add_executable(hw1_tests tests/test_multiplication.cpp)
-target_link_libraries(hw1_tests gtest_main)
-include(GoogleTest)
-gtest_discover_tests(hw1_tests)
-
+#add_executable(hw1_tests tests/test_multiplication.cpp)
+#target_link_libraries(hw1_tests gtest_main)
+#include(GoogleTest)
+#gtest_discover_tests(hw1_tests)
