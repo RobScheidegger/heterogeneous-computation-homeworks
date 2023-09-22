@@ -113,7 +113,7 @@ class MmapMemoryAllocator : public IMatrixVectorAllocator {
         const uint64_t size = n * sizeof(float*) + (n * m + m + n) * sizeof(float);
         void* vmem_region = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
-        if (vmem_region == MAP_FAILED) {
+        if (vmem_region == 0 || vmem_region == MAP_FAILED) {
             return false;
         }
 

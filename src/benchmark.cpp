@@ -11,7 +11,7 @@
 #include "multipliers.hpp"
 
 #define WARMUP_OPERATIONS 100000
-#define BENCHMARK_REPETITIONS 1
+#define BENCHMARK_REPETITIONS 10
 
 struct BenchmarkConfiguration {
     // Configuration fields
@@ -54,13 +54,19 @@ int main(int argc, char** argv) {
 
     std::cout << "Creating benchmark configurations..." << std::endl;
 
-    // Make all of the required configurations
-    for (auto& n : n_options) {
-        for (auto& m : m_options) {
-            for (auto& num_threads : num_threads_options) {
-                for (auto& allocator : allocators) {
-                    for (auto& multiplier : multipliers) {
-                        configurations.emplace_back(n, m, num_threads, allocator, multiplier);
+    if (argc == 2 && std::string(argv[1]) == "--simple") {
+        std::cout << "Running simple mode..." << std::endl;
+        configurations.emplace_back(100000, 100000, 16, std::make_shared<MmapMemoryAllocator>(),
+                                    std::make_shared<RowColumnMultiplier>());
+    } else {
+        // Make all of the required configurations
+        for (auto& n : n_options) {
+            for (auto& m : m_options) {
+                for (auto& num_threads : num_threads_options) {
+                    for (auto& allocator : allocators) {
+                        for (auto& multiplier : multipliers) {
+                            configurations.emplace_back(n, m, num_threads, allocator, multiplier);
+                        }
                     }
                 }
             }
