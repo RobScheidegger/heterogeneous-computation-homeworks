@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <sys/mman.h>
+#include <cassert>
 #include <memory>
 #include <string>
 
@@ -88,7 +89,7 @@ class ContiguousMemoryAllocator : public IMatrixVectorAllocator {
         float* global = (float*)malloc(size);
 
         matrix = (float**)global;
-        float* data_start = (float*)(global + n * sizeof(float*));
+        float* data_start = (float*)(global + n);
         matrix[0] = (float*)data_start;
         for (uint32_t i = 0; i < n; i++)
             matrix[i] = &matrix[0][i * m];
@@ -103,7 +104,7 @@ class ContiguousMemoryAllocator : public IMatrixVectorAllocator {
         std::free(matrix);
     }
 
-    std::string getName() const override { return "ConiguousMemoryAllocator"; }
+    std::string getName() const override { return "ContiguousMemoryAllocator"; }
 };
 
 /// @brief Memory allocator that uses mmap to allocate all of the different blocks in a _single_ contiguous memory block.
@@ -116,20 +117,22 @@ class MmapMemoryAllocator : public IMatrixVectorAllocator {
             return false;
         }
 
-        matrix = (float**)vmem_region;
-        float* data_start = (float*)(vmem_region + n * sizeof(float*));
-        matrix = (float**)data_start;
+        float* global = (float*)vmem_region;
+
+        matrix = (float**)global;
+        float* data_start = (float*)(global + n);
+        matrix[0] = (float*)data_start;
         for (uint32_t i = 0; i < n; i++)
             matrix[i] = &matrix[0][i * m];
+
         vector = data_start + n * m;
         output = vector + m;
-
         return true;
     }
 
     void free(const uint32_t n, const uint32_t m, float**& matrix, float*& vector, float*& output) const override {
         const uint64_t size = n * sizeof(float*) + (n * m + m + n) * sizeof(float);
-        munmap(matrix, size);
+        assert(munmap(matrix, size) == 0 && "Failed to unmap memory region");
     }
 
     std::string getName() const override { return "MmapMemoryAllocator"; }

@@ -44,9 +44,8 @@ const std::vector<uint32_t> num_threads_options{1, 2, 4, 8, 16, 32, 64};
 
 int main(int argc, char** argv) {
     std::vector<IMatrixVectorAllocator::SharedPtr> allocators{
-        std::make_shared<DisjointMemoryAllocator>(),
-        std::make_shared<DisjointRowMemoryAllocator>(),
-    };
+        std::make_shared<DisjointMemoryAllocator>(), std::make_shared<DisjointRowMemoryAllocator>(),
+        std::make_shared<ContiguousMemoryAllocator>(), std::make_shared<MmapMemoryAllocator>()};
 
     std::vector<IMultiplier::SharedPtr> multipliers{std::make_shared<RowColumnMultiplier>(),
                                                     std::make_shared<ColumnRowMultiplier>()};
