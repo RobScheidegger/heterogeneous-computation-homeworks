@@ -1,20 +1,4 @@
-## SLURM PROLOG ###############################################################
-##    Job ID : 11334368
-##  Job Name : run_benchmark.sh
-##  Nodelist : node[1334,1345]
-##      CPUs : 32
-##  Mem/Node : 16384 MB
-## Directory : /oscar/home/hizhar/APMA2822B/parallel-computation-hw1
-##   Job Started : Fri Sep 22 17:01:22 EDT 2023
-###############################################################################
-[ 16%] Built target gtest
-[ 33%] Built target gtest_main
-[ 50%] Built target hw1_tests
-[ 66%] Built target benchmark
-[ 83%] Built target gmock
-[100%] Built target gmock_main
-Creating benchmark configurations...
-Found 2016 benchmark configurations.
+n,m,threads,allocator,multiplier,iterations,time_us,stdev_us
 1,1,1,DisjointMemoryAllocator,RowColumnMultiplier,10,1.100000,3.300000
 1,1,1,DisjointMemoryAllocator,ColumnRowMultiplier,10,0.000000,0.000000
 1,1,1,DisjointRowMemoryAllocator,RowColumnMultiplier,10,0.000000,0.000000

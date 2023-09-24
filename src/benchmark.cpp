@@ -1,4 +1,5 @@
 
+#include <omp.h>
 #include <stdio.h>
 #include <cmath>
 #include <iostream>
@@ -39,10 +40,18 @@ struct BenchmarkConfiguration {
 };
 
 const std::vector<uint32_t> n_options{1, 10, 100, 1000, 10000, 100000};
-const std::vector<uint32_t> m_options{1, 10, 100, 1000, 10000, 10000};
+const std::vector<uint32_t> m_options{1, 10, 100, 1000, 10000};
 const std::vector<uint32_t> num_threads_options{1, 2, 4, 8, 16, 32, 64};
 
 int main(int argc, char** argv) {
+    // Check CPU affinity
+    int* cpuid = new int[omp_get_max_threads()];
+#pragma omp parallel
+    { cpuid[omp_get_thread_num()] = sched_getcpu(); }
+
+    for (int k = 0; k < omp_get_max_threads(); k++)
+        std::cout << k << "," << cpuid[k] << std::endl;
+
     std::vector<IMatrixVectorAllocator::SharedPtr> allocators{
         std::make_shared<DisjointMemoryAllocator>(), std::make_shared<DisjointRowMemoryAllocator>(),
         std::make_shared<ContiguousMemoryAllocator>(), std::make_shared<MmapMemoryAllocator>()};
@@ -81,9 +90,9 @@ int main(int argc, char** argv) {
         const uint32_t m = configuration.m;
 
         // Warmup with some garbage computation
-        uint32_t q = 1;
+        uint32_t garbage = 1;
         for (uint32_t i = 1; i < WARMUP_OPERATIONS; i++) {
-            q *= i;
+            garbage *= i;
         };
 
         for (uint32_t iteration = 0; iteration < configuration.repetitions; iteration++) {
