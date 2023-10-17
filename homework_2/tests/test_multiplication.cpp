@@ -7,7 +7,7 @@
 #include "math_utils.hpp"
 #include "matrix.hpp"
 #include "matrix_multiplier.hpp"
-#include "multipliers/default_multiplier.hpp"
+#include "multipliers/default_multipliers.hpp"
 
 TEST(MatrixMultiplication, SimpleMultiplicationTest) {
 

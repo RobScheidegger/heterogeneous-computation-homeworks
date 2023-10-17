@@ -10,9 +10,11 @@
 #include "math_utils.hpp"
 #include "matrix.hpp"
 #include "matrix_multiplier.hpp"
+#include "multipliers/default_multipliers.hpp"
+#include "multipliers/openmp_multipliers.hpp"
 
 #define WARMUP_OPERATIONS 100000
-#define BENCHMARK_REPETITIONS 10
+#define BENCHMARK_REPETITIONS 4
 
 struct BenchmarkConfiguration {
     // Configuration fields
@@ -28,7 +30,7 @@ struct BenchmarkConfiguration {
 
     BenchmarkConfiguration(const uint32_t n, const uint32_t m, const uint32_t k, const uint32_t num_threads,
                            IMatrixMultiplier::SharedPtr multiplier)
-        : n(n), m(m), num_threads(num_threads), multiplier(multiplier) {}
+        : n(n), m(m), k(k), num_threads(num_threads), multiplier(multiplier) {}
 
     std::string toCsv() const {
         auto meanStdDev = getMeanAndStdDev<uint64_t, float>(times);
@@ -39,10 +41,10 @@ struct BenchmarkConfiguration {
     };
 };
 
-const std::vector<uint32_t> n_options{1, 10, 100, 1000, 10000, 25000};
-const std::vector<uint32_t> m_options{1, 10, 100, 1000, 10000, 25000};
-const std::vector<uint32_t> k_options{1, 10, 100, 1000, 10000, 25000};
-const std::vector<uint32_t> num_threads_options{1, 4, 16};
+const std::vector<uint32_t> n_options{10, 100, 1000, 5000};
+const std::vector<uint32_t> m_options{10, 100, 1000, 5000};
+const std::vector<uint32_t> k_options{10, 100, 1000, 5000};
+const std::vector<uint32_t> num_threads_options{4, 16};
 
 int main(int argc, char** argv) {
     // Check CPU affinity
@@ -53,7 +55,9 @@ int main(int argc, char** argv) {
     for (int k = 0; k < omp_get_max_threads(); k++)
         std::cout << k << "," << cpuid[k] << std::endl;
 
-    std::vector<IMatrixMultiplier::SharedPtr> multipliers{};
+    std::vector<IMatrixMultiplier::SharedPtr> multipliers{
+        std::make_shared<DefaultMultiplierIJK>(), std::make_shared<DefaultMultiplierIJKCached>(),
+        std::make_shared<DefaultMultiplierJIK>(), std::make_shared<Collapse2Multiplier>()};
 
     std::vector<BenchmarkConfiguration> configurations;
 
@@ -75,7 +79,10 @@ int main(int argc, char** argv) {
     std::cout << "Found " << configurations.size() << " benchmark configurations." << std::endl;
 
     // Run an experiment for each of the configurations
+    uint32_t experiment_number = 0;
     for (auto& configuration : configurations) {
+        experiment_number++;
+
         const uint32_t n = configuration.n;
         const uint32_t m = configuration.m;
         const uint32_t k = configuration.k;
@@ -102,7 +109,7 @@ int main(int argc, char** argv) {
             configuration.times.push_back(time);
         }
 
-        std::cout << configuration.toCsv() << std::endl;
+        std::cout << experiment_number << "," << configuration.toCsv() << std::endl;
     }
     return 0;
 }
