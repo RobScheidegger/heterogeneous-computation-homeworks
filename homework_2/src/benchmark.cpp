@@ -10,6 +10,7 @@
 #include "math_utils.hpp"
 #include "matrix.hpp"
 #include "matrix_multiplier.hpp"
+#include "multipliers/blocking_multipliers.hpp"
 #include "multipliers/default_multipliers.hpp"
 #include "multipliers/openmp_multipliers.hpp"
 
@@ -41,12 +42,13 @@ struct BenchmarkConfiguration {
     };
 };
 
-const std::vector<uint32_t> n_options{10, 100, 1000, 5000};
-const std::vector<uint32_t> m_options{10, 100, 1000, 5000};
-const std::vector<uint32_t> k_options{10, 100, 1000, 5000};
-const std::vector<uint32_t> num_threads_options{4, 16};
-
 int main(int argc, char** argv) {
+    std::vector<uint32_t> n_options{10, 100, 1000, 5000};
+    std::vector<uint32_t> m_options{10, 100, 1000, 5000};
+    std::vector<uint32_t> k_options{10, 100, 1000, 5000};
+    std::vector<uint32_t> num_threads_options{4, 16};
+    std::vector<uint32_t> blocking_options{1, 4, 16, 64, 128, 256, 512, 1024, 2048, 4096};
+
     // Check CPU affinity
     int* cpuid = new int[omp_get_max_threads()];
 #pragma omp parallel
@@ -55,9 +57,30 @@ int main(int argc, char** argv) {
     for (int k = 0; k < omp_get_max_threads(); k++)
         std::cout << k << "," << cpuid[k] << std::endl;
 
-    std::vector<IMatrixMultiplier::SharedPtr> multipliers{
-        std::make_shared<DefaultMultiplierIJK>(), std::make_shared<DefaultMultiplierIJKCached>(),
-        std::make_shared<DefaultMultiplierJIK>(), std::make_shared<Collapse2Multiplier>()};
+    std::vector<IMatrixMultiplier::SharedPtr> multipliers;
+    if (argc == 2 && strcmp(argv[1], "--blocking") == 0) {
+        for (const uint32_t block_size_i : blocking_options) {
+            for (const uint32_t block_size_j : blocking_options) {
+                for (const uint32_t block_size_k : blocking_options) {
+                    multipliers.push_back(
+                        std::make_shared<BlockingMultiplier>(block_size_i, block_size_j, block_size_k));
+                }
+            }
+        }
+        std::cout << argv[1] << std::endl;
+
+        n_options.clear();
+        m_options.clear();
+        k_options.clear();
+
+        n_options.push_back(100);
+        m_options.push_back(100);
+        k_options.push_back(100);
+    } else {
+        multipliers = {std::make_shared<DefaultMultiplierIJK>(), std::make_shared<DefaultMultiplierIJKCached>(),
+                       std::make_shared<DefaultMultiplierJIK>(), std::make_shared<Collapse2Multiplier>(),
+                       std::make_shared<Collapse3Multiplier>()};
+    }
 
     std::vector<BenchmarkConfiguration> configurations;
 
