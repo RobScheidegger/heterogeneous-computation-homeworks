@@ -47,7 +47,9 @@ int main(int argc, char** argv) {
     std::vector<uint32_t> m_options{10, 100, 1000, 5000};
     std::vector<uint32_t> k_options{10, 100, 1000, 5000};
     std::vector<uint32_t> num_threads_options{4, 16};
-    std::vector<uint32_t> blocking_options{1, 4, 16, 64, 128, 256, 512, 1024, 2048, 4096};
+    std::vector<uint32_t> blocking_options{
+        16, 32, 64, 128, 256,
+    };
 
     // Check CPU affinity
     int* cpuid = new int[omp_get_max_threads()];
@@ -67,15 +69,20 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        std::cout << argv[1] << std::endl;
-
         n_options.clear();
         m_options.clear();
         k_options.clear();
 
         n_options.push_back(100);
         m_options.push_back(100);
-        k_options.push_back(100);
+        k_options.push_back(1000);
+    } else if (argc == 2 && strcmp(argv[1], "--baseline") == 0) {
+        multipliers = {std::make_shared<DefaultMultiplierIJKCached>(),
+                       std::make_shared<Collapse2AccumulateMultiplier>()};
+        n_options = {100};
+        m_options = {100};
+        k_options = {1000};
+
     } else {
         multipliers = {std::make_shared<DefaultMultiplierIJK>(), std::make_shared<DefaultMultiplierIJKCached>(),
                        std::make_shared<DefaultMultiplierJIK>(), std::make_shared<Collapse2Multiplier>(),

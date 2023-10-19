@@ -2,9 +2,9 @@
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
-class BlockingMultiplier : public IMatrixMultiplier {
+class BlockingMultiplierIJK : public IMatrixMultiplier {
    public:
-    BlockingMultiplier(const uint32_t block_size_i, const uint32_t block_size_j, const uint32_t block_size_k)
+    BlockingMultiplierIJK(const uint32_t block_size_i, const uint32_t block_size_j, const uint32_t block_size_k)
         : block_size_i(block_size_i), block_size_j(block_size_j), block_size_k(block_size_k) {}
 
     uint64_t multiply(const uint32_t N, const uint32_t M, const uint32_t K, const uint8_t n_threads, float** C,
