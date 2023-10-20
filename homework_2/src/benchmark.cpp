@@ -77,7 +77,9 @@ int main(int argc, char** argv) {
         m_options.push_back(100);
         k_options.push_back(1000);
     } else if (argc == 2 && strcmp(argv[1], "--baseline") == 0) {
-        multipliers = {std::make_shared<DefaultMultiplierIJKCached>()};
+        multipliers = {std::make_shared<DefaultMultiplierIJKCached>(),
+                       std::make_shared<DefaultMultiplierIJKTranspose>(),
+                       std::make_shared<DefaultMultiplierIJKTranspose1D>()};
         n_options = {100};
         m_options = {100};
         k_options = {1000};
