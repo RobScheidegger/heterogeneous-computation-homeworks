@@ -1,3 +1,4 @@
+#include "../matrix.hpp"
 #include "../matrix_multiplier.hpp"
 
 class DefaultMultiplierIJK : public IMatrixMultiplier {
@@ -20,9 +21,7 @@ class DefaultMultiplierIJK : public IMatrixMultiplier {
         return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
     }
 
-    std::string getName() const override {
-        return "DefaultMultiplierIJK";
-    }
+    std::string getName() const override { return "DefaultMultiplierIJK"; }
 };
 
 class DefaultMultiplierIJKCached : public IMatrixMultiplier {
@@ -47,12 +46,43 @@ class DefaultMultiplierIJKCached : public IMatrixMultiplier {
         return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
     }
 
-    std::string getName() const override {
-        return "DefaultMultiplierIJKCached";
-    }
+    std::string getName() const override { return "DefaultMultiplierIJKCached"; }
 };
 
 class DefaultMultiplierIJKTranspose : public IMatrixMultiplier {
+   public:
+    uint64_t multiply(const uint32_t N, const uint32_t M, const uint32_t K, const uint8_t n_threads, float** C,
+                      float** A, float** B) const override {
+        auto start = std::chrono::high_resolution_clock::now();
+
+        // Transpose B so we iterate k in the right direction
+        Matrix b_T_matrix{K, M};
+        for (uint32_t i = 0; i < K; i++) {
+            for (uint32_t j = 0; j < M; j++) {
+                b_T_matrix.data[i][j] = B[j][i];
+            }
+        }
+
+        float** b_T = b_T_matrix.data;
+
+#pragma omp parallel for num_threads(n_threads)
+        for (uint32_t i = 0; i < N; i++) {
+            for (uint32_t j = 0; j < M; j++) {
+                for (uint32_t k = 0; k < K; k++) {
+                    C[i][j] = C[i][j] + A[i][k] * b_T[j][k];
+                }
+            }
+        }
+
+        auto end = std::chrono::high_resolution_clock::now();
+
+        return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    }
+
+    std::string getName() const override { return "DefaultMultiplierIJKTranspose"; }
+};
+
+class DefaultMultiplierIJKTransposeCached : public IMatrixMultiplier {
    public:
     uint64_t multiply(const uint32_t N, const uint32_t M, const uint32_t K, const uint8_t n_threads, float** C,
                       float** A, float** B) const override {
@@ -84,9 +114,7 @@ class DefaultMultiplierIJKTranspose : public IMatrixMultiplier {
         return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
     }
 
-    std::string getName() const override {
-        return "DefaultMultiplierIJKTranspose";
-    }
+    std::string getName() const override { return "DefaultMultiplierIJKTransposeCached"; }
 };
 
 class DefaultMultiplierIJKTranspose1D : public IMatrixMultiplier {
@@ -128,9 +156,7 @@ class DefaultMultiplierIJKTranspose1D : public IMatrixMultiplier {
         return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
     }
 
-    std::string getName() const override {
-        return "DefaultMultiplierIJKTranspose1D";
-    }
+    std::string getName() const override { return "DefaultMultiplierIJKTranspose1D"; }
 };
 
 class DefaultMultiplierJIK : public IMatrixMultiplier {
@@ -153,7 +179,5 @@ class DefaultMultiplierJIK : public IMatrixMultiplier {
         return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
     }
 
-    std::string getName() const override {
-        return "DefaultMultiplierJIK";
-    }
+    std::string getName() const override { return "DefaultMultiplierJIK"; }
 };
