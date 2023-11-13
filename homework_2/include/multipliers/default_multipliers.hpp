@@ -110,7 +110,7 @@ class DefaultMultiplierIJKTranspose1D : public IMatrixMultiplier {
         const float* B_1 = b_T[0];
 
         float cij;
-#pragma omp parallel for num_threads(n_threads) collapse(2)
+#pragma omp parallel for num_threads(n_threads) collapse(2) private(cij)
         for (uint32_t i = 0; i < N; i++) {
             for (uint32_t j = 0; j < M; j++) {
                 cij = C_1[i * N + j];
