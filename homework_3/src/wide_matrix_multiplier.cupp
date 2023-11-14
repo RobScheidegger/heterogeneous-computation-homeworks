@@ -1,9 +1,11 @@
 #include <cuda.h>
+#include <cuda_runtime.h>
+#include <
 
 #include "./matrix_vector_multiplier.hpp"
-#include "./multiple_warp_multiplier.cuh"
+#include "multiple_warp_multiplier.h"
 
-__global__ transpose(float* A, float* A_T, int num_rows, int num_cols) {
+__global__ void transpose(float* A, float* A_T, int num_rows, int num_cols) {
     int row = blockIdx.x * blockDim.x + threadIdx.x;
     int col = blockIdx.y * blockDim.y + threadIdx.y;
 

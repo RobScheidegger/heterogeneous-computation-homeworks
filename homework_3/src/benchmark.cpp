@@ -1,17 +1,18 @@
 #include <cuda.h>
+#include <cuda_runtime.h>
 #include <cstdint>
 #include <iostream>
 #include <string>
 #include <vector>
 
-#include "include/math_utils.hpp"
+#include "math_utils.hpp"
 
-#include "include/atomic_single_warp_multiplier.cuh"
-#include "include/multiple_warp_multiplier.cuh"
-#include "include/shuffle_single_warp_multiplier.cuh"
+#include "atomic_single_warp_multiplier.h"
+#include "multiple_warp_multiplier.h"
+#include "shuffle_single_warp_multiplier.h"
 
 #define WARMUP_OPERATIONS 100000
-#define BENCHMARK_REPITITIONS 4
+#define BENCHMARK_REPITITIONS 10
 
 void safeCudaMalloc(void** ptr, size_t size) {
     cudaError_t err;
@@ -51,11 +52,13 @@ struct BenchmarkConfiguration {
 };
 
 int main(int argc, char** argv) {
-    std::vector<uint32_t> m_options{10, 100, 1000, 10000};
+    std::vector<uint32_t> m_options{10, 100, 1000, 10000, 20000};
     std::vector<float> aspect_ratio_options{0.01, 0.1, 1, 10, 100};
-    std::vector<IMatrixVectorMultiplier::SharedPtr> multipliers{std::make_shared<AtomicSingleWarpMultiplier>(),
-                                                                std::make_shared<MultipleWarpMultiplier>(),
-                                                                std::make_shared<ShuffleSingleWarpMultiplier>()};
+    std::vector<IMatrixVectorMultiplier::SharedPtr> multipliers{
+        std::make_shared<AtomicSingleWarpMultiplier>(),
+        std::make_shared<MultipleWarpMultiplier>(),
+        std::make_shared<ShuffleSingleWarpMultiplier>(),
+    };
     std::vector<BenchmarkConfiguration> configurations;
 
     std::cout << "Creating benchmark configurations..." << std::endl;
@@ -67,6 +70,10 @@ int main(int argc, char** argv) {
             }
         }
     }
+
+    // Atomic vs Shuffle
+    // Multiple Warp vs Single Warp
+    // Wide vs Multiple Warp (for "fat" matrix, say 10 rows x 10000 columns)
 
     std::cout << "Found " << configurations.size() << " configurations." << std::endl;
 
