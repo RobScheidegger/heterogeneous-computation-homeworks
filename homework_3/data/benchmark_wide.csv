@@ -1,5 +1,4 @@
-Creating benchmark configurations...
-Found 6 configurations.
+i,n,m,repetitions,multiplier,time_us,stddev_us
 1,10,10,10,WideMatrixMultiplier,8.800000,4.749737
 2,10,100,10,WideMatrixMultiplier,7.300000,0.458257
 3,10,1000,10,WideMatrixMultiplier,8.200000,0.400005

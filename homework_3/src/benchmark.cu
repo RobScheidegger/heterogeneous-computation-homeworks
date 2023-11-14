@@ -202,9 +202,9 @@ class WideMatrixMultiplier : public IMatrixVectorMultiplier {
         cudaDeviceSynchronize();
 
         auto end = std::chrono::high_resolution_clock::now();
-        return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
         cudaFree(A_T);
+        return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
     }
 
     std::string getName() const override { return "WideMatrixMultiplier"; }
@@ -249,7 +249,7 @@ struct BenchmarkConfiguration {
 
 int main(int argc, char** argv) {
     std::vector<uint32_t> m_options{10, 100, 1000, 10000};
-    std::vector<float> aspect_ratio_options{0.01, 0.1, 1, 10, 100};
+    std::vector<float> aspect_ratio_options{0.001, 0.01, 0.1, 1, 10, 100};
     std::vector<IMatrixVectorMultiplier::SharedPtr> multipliers{
         std::make_shared<AtomicSingleWarpMultiplier>(),
         std::make_shared<MultipleWarpMultiplier>(),
@@ -263,7 +263,7 @@ int main(int argc, char** argv) {
         for (auto& aspect_ratio : aspect_ratio_options) {
             for (auto& multiplier : multipliers) {
                 uint32_t n = (uint32_t)m * aspect_ratio;
-                if (n == 0 || n > 10000)
+                if (n == 0 || n * m > 10000 * 10000)
                     continue;
                 configurations.emplace_back(BenchmarkConfiguration(n, m, multiplier));
             }
