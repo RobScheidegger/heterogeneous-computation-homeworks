@@ -1,0 +1,8 @@
+Creating benchmark configurations...
+Found 6 configurations.
+1,10,10,10,WideMatrixMultiplier,8.800000,4.749737
+2,10,100,10,WideMatrixMultiplier,7.300000,0.458257
+3,10,1000,10,WideMatrixMultiplier,8.200000,0.400005
+4,10,10000,10,WideMatrixMultiplier,23.799999,0.748371
+5,10,100000,10,WideMatrixMultiplier,185.699997,1.486922
+6,10,1000000,10,WideMatrixMultiplier,1725.400024,11.401754

@@ -243,12 +243,12 @@ struct BenchmarkConfiguration {
         auto meanStdDev = getMeanAndStdDev<uint64_t, float>(times);
 
         return std::to_string(n) + ',' + std::to_string(m) + ',' + std::to_string(repetitions) + ',' +
-               std::to_string(meanStdDev.first) + ',' + std::to_string(meanStdDev.second);
+               multiplier->getName() + ',' + std::to_string(meanStdDev.first) + ',' + std::to_string(meanStdDev.second);
     }
 };
 
 int main(int argc, char** argv) {
-    std::vector<uint32_t> m_options{10, 100, 1000, 10000, 20000};
+    std::vector<uint32_t> m_options{10, 100, 1000, 10000};
     std::vector<float> aspect_ratio_options{0.01, 0.1, 1, 10, 100};
     std::vector<IMatrixVectorMultiplier::SharedPtr> multipliers{
         std::make_shared<AtomicSingleWarpMultiplier>(),
@@ -262,9 +262,21 @@ int main(int argc, char** argv) {
     for (auto& m : m_options) {
         for (auto& aspect_ratio : aspect_ratio_options) {
             for (auto& multiplier : multipliers) {
-                configurations.emplace_back(BenchmarkConfiguration((uint32_t)m * aspect_ratio, m, multiplier));
+                uint32_t n = (uint32_t)m * aspect_ratio;
+                if (n == 0 || n > 10000)
+                    continue;
+                configurations.emplace_back(BenchmarkConfiguration(n, m, multiplier));
             }
         }
+    }
+
+    if (argc == 2 && strncmp(argv[1], "wide", 4) == 0) {
+        configurations.clear();
+        for (auto& m : m_options) {
+            configurations.emplace_back(BenchmarkConfiguration(10, m, std::make_shared<WideMatrixMultiplier>()));
+        }
+        configurations.emplace_back(BenchmarkConfiguration(10, 100000, std::make_shared<WideMatrixMultiplier>()));
+        configurations.emplace_back(BenchmarkConfiguration(10, 1000000, std::make_shared<WideMatrixMultiplier>()));
     }
 
     // Atomic vs Shuffle
@@ -312,6 +324,14 @@ int main(int argc, char** argv) {
 
             // call the kernel
             uint32_t time = multiplier->multiply(A_d, x_d, y_d, n, m);
+
+            cudaFree(A_d);
+            cudaFree(x_d);
+            cudaFree(y_d);
+
+            free(A_h);
+            free(x_h);
+            free(y_h);
 
             configuration.times.push_back(time);
         }
