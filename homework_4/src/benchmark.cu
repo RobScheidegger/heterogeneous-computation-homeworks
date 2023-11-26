@@ -39,7 +39,7 @@ class IMatrixVectorMultiplier {
    public:
     typedef std::shared_ptr<IMatrixVectorMultiplier> SharedPtr;
 
-    virtual uint32_t multiply(float* const A, float* const x, float* y, int num_rows, int num_cols,
+    virtual uint32_t multiply(float* const A, float* const x, float* y, float* r, int num_rows, int num_cols,
                               int num_streams) const = 0;
 
     virtual std::string getName() const = 0;
@@ -84,14 +84,36 @@ __global__ void saxby(float* A, float* x, int num_rows, int num_cols, float* y) 
 
 class MatrixVectorStreamMultiplier : public IMatrixVectorMultiplier {
    public:
-    uint32_t multiply(float* const A, float* const x, float* y, int num_rows, int num_cols,
+    uint32_t multiply(float* const A, float* const x, float* y, float* r, int num_rows, int num_cols,
                       int num_streams) const override {
 
         auto start = std::chrono::high_resolution_clock::now();
 
-        dim3 num_blocks(CEIL(num_rows, WARPS_PER_BLOCK), 1, 1);
-        dim3 max_threads_per_block(MAX_THREADS_PER_BLOCK, 1, 1);
-        saxby<<<num_blocks, max_threads_per_block>>>(A, x, num_rows, num_cols, y);
+        cudaStream_t* streams = (cudaStream_t*)malloc(num_streams * sizeof(cudaStream_t));
+        for (int i = 0; i < num_streams; i++) {
+            cudaStreamCreate(&streams[i]);
+        }
+
+        int rows_per_stream = CEIL(num_rows, num_streams);
+        for (int i = 0; i < num_streams; i++) {
+            int start_row = i * rows_per_stream;
+            int end_row = MIN((i + 1) * rows_per_stream, num_rows);
+            int num_rows_in_stream = end_row - start_row;
+            int num_bytes = num_rows_in_stream * num_cols * sizeof(float);
+
+            float* A_d;
+            cudaMallocAsync(&A_d, num_bytes, streams[i]);
+            cudaMemcpyAsync(A_d, A + start_row * num_cols, num_bytes, cudaMemcpyHostToDevice, streams[i]);
+
+            dim3 num_blocks(CEIL(num_rows_in_stream, WARPS_PER_BLOCK), 1, 1);
+            dim3 max_threads_per_block(MAX_THREADS_PER_BLOCK, 1, 1);
+            saxby<<<num_blocks, max_threads_per_block, 0, streams[i]>>>(A_d, x, num_rows_in_stream, num_cols,
+                                                                        y + start_row);
+            cudaMemcpyAsync(r + start_row, y + start_row, num_rows_in_stream * sizeof(float), cudaMemcpyDeviceToHost,
+                            streams[i]);
+            cudaFreeAsync(A_d, streams[i]);
+        }
+
         cudaDeviceSynchronize();
 
         auto end = std::chrono::high_resolution_clock::now();
@@ -111,7 +133,7 @@ struct BenchmarkConfiguration {
     std::vector<uint64_t> times;
 
     BenchmarkConfiguration(uint32_t n, uint32_t m, uint32_t k, IMatrixVectorMultiplier::SharedPtr multiplier)
-        : n(n), m(m), k(k) multiplier(multiplier) {}
+        : n(n), m(m), k(k), multiplier(multiplier) {}
 
     std::string toCsv() const {
         auto meanStdDev = getMeanAndStdDev<uint64_t, float>(times);
@@ -122,7 +144,8 @@ struct BenchmarkConfiguration {
 };
 
 void safeCudaMallocHost(void** ptr, size_t size) {
-    cudaError_t err = cudaMallocHost(ptr, size) if (err != cudaSuccess) {
+    cudaError_t err = cudaMallocHost(ptr, size);
+    if (err != cudaSuccess) {
         std::cerr << "Failed to allocate pinned host memory: " << cudaGetErrorString(err) << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -181,28 +204,26 @@ int main() {
         };
 
         for (uint32_t repetition = 0; repetition < configuration.repetitions; repetition++) {
-            float* A;
+            float *A, *y_h;
 
             float* x_h = (float*)malloc(k * sizeof(float));
-            float* y_h = (float*)malloc(n * sizeof(float));
-            safeCudaMallocHost(&A, n * k * sizeof(float));
-            safeCudaMallocHost(&y, n * sizeof(float));
+            safeCudaMallocHost((void**)&A, n * k * sizeof(float));
+            safeCudaMallocHost((void**)&y_h, n * sizeof(float));
 
             float* x_d;
             float* y_d;
-            safeCudaMalloc(&x_d, k * sizeof(float));
-            safeCudaMalloc(&y_d, n * sizeof(float));
+            safeCudaMalloc((void**)&x_d, k * sizeof(float));
+            safeCudaMalloc((void**)&y_d, n * sizeof(float));
             safeCudaMemcpy(x_d, x_h, k * sizeof(float), cudaMemcpyHostToDevice);
-            safeCudaMemcpy(y_d, y_h n * sizeof(float), cudaMemcpyHostToDevice);
+            safeCudaMemcpy(y_d, y_h, n * sizeof(float), cudaMemcpyHostToDevice);
 
-            uint32_t time = multiplier->multiply(A_d, x_d, y_d, n, k, m) configuration.times.push_back(time);
+            uint32_t time = multiplier->multiply(A, x_d, y_d, y_h, n, k, m);
 
             cudaFreeHost(A);
-            cudaFreeHost(y);
+            cudaFreeHost(y_h);
             cudaFree(x_d);
 
             free(x_h);
-            free(x_d);
 
             configuration.times.push_back(time);
         }
