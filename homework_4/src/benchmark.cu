@@ -22,7 +22,7 @@
 #define WARPS_PER_BLOCK 32
 #define WARP_SIZE 32
 
-#define WARMUP_OPERATIONS 1000000
+#define WARMUP_OPERATIONS 10
 #define BENCHMARK_REPITITIONS 10
 
 template <typename T, typename F = float>
@@ -65,22 +65,6 @@ __global__ void saxby(float* A, float* x, int num_rows, int num_cols, float* y) 
         y[matrix_row_idx] += sum;
     }
 }
-
-// matrix-vector multiplication y = Ax
-// N and K ~ 1000-2000
-
-// Matrix A into M sets
-// M = { 1, 2, 3, 4, 5, 6, 7, 8 }
-
-// Copy vector x to the GPU
-
-// Start Timer
-// Create M cuda streams
-//      asynchronously copy a block of rows of A into GPU memory
-//      asynchronously launch a kernel to compute y = Ax
-//      asynchronously copy y from GPU to CPU
-// Synchronize
-// Stop Timer
 
 class MatrixVectorStreamMultiplier : public IMatrixVectorMultiplier {
    public:
@@ -138,7 +122,7 @@ struct BenchmarkConfiguration {
     std::string toCsv() const {
         auto meanStdDev = getMeanAndStdDev<uint64_t, float>(times);
 
-        return std::to_string(n) + ',' + std::to_string(m) + ',' + std::to_string(repetitions) + ',' +
+        return std::to_string(n) + ',' + std::to_string(m) + ',' + std::to_string(k) + ',' + std::to_string(repetitions) + ',' +
                multiplier->getName() + ',' + std::to_string(meanStdDev.first) + ',' + std::to_string(meanStdDev.second);
     }
 };
@@ -169,6 +153,38 @@ void safeCudaMemcpy(void* dest, void* src, size_t size, cudaMemcpyKind kind) {
     }
 }
 
+void generateParameters(float **A, float **x_h, float **y_h, float **x_d, float **y_d, int n, int k, int m) {
+    *x_h = (float*)malloc(k * sizeof(float));
+    safeCudaMallocHost((void**)A, n * k * sizeof(float));
+    safeCudaMallocHost((void**)y_h, n * sizeof(float));
+
+    for (int i = 0; i < n * k; i++) {
+        (*A)[i] = 1;
+    }
+
+    for (int i = 0; i < k; i++) {
+        (*x_h)[i] = 1;
+    }
+
+    for (int i = 0; i < n; i++) {
+        (*y_h)[i] = 0;
+    }
+
+    safeCudaMalloc((void**)x_d, k * sizeof(float));
+    safeCudaMalloc((void**)y_d, n * sizeof(float));
+    safeCudaMemcpy(*x_d, *x_h, k * sizeof(float), cudaMemcpyHostToDevice);
+    safeCudaMemcpy(*y_d, *y_h, n * sizeof(float), cudaMemcpyHostToDevice);
+}
+
+void freeParameters(float* A, float *x_h, float *y_h, float* x_d, float *y_d) {
+    cudaFreeHost(A);
+    cudaFreeHost(y_h);
+    cudaFree(x_d);
+    cudaFree(y_d);
+
+    free(x_h);
+}
+
 int main() {
     std::vector<uint32_t> n_options = {1000, 1200, 1400, 1600, 1800, 2000};
     std::vector<uint32_t> k_options = {1000, 1200, 1400, 1600, 1800, 2000};
@@ -189,7 +205,7 @@ int main() {
     }
 
     std::cout << "Generated " << configurations.size() << " configurations" << std::endl;
-
+    std::cout << "n,m,k,reps,multiplier,time_us,stddev_us";
     uint32_t experiment_number = 1;
     for (auto& configuration : configurations) {
         const uint32_t n = configuration.n;
@@ -197,35 +213,21 @@ int main() {
         const uint32_t m = configuration.m;
         const IMatrixVectorMultiplier::SharedPtr multiplier = configuration.multiplier;
 
-        uint32_t garbage = 1;
+        float *A, *x_h, *y_h, *x_d, *y_d;
+        generateParameters(&A, &x_h, &y_h, &x_d, &y_d, n, k, m);
         for (uint32_t i = 1; i < WARMUP_OPERATIONS; i++) {
-            // TODO: replace with calls the the kernel
-            garbage *= i;
+            multiplier->multiply(A, x_d, y_d, y_h, n, k, m);
         };
 
+
         for (uint32_t repetition = 0; repetition < configuration.repetitions; repetition++) {
-            float *A, *y_h;
-
-            float* x_h = (float*)malloc(k * sizeof(float));
-            safeCudaMallocHost((void**)&A, n * k * sizeof(float));
-            safeCudaMallocHost((void**)&y_h, n * sizeof(float));
-
-            float* x_d;
-            float* y_d;
-            safeCudaMalloc((void**)&x_d, k * sizeof(float));
-            safeCudaMalloc((void**)&y_d, n * sizeof(float));
-            safeCudaMemcpy(x_d, x_h, k * sizeof(float), cudaMemcpyHostToDevice);
-            safeCudaMemcpy(y_d, y_h, n * sizeof(float), cudaMemcpyHostToDevice);
-
+            float *A, *x_h, *y_h, *x_d, *y_d;
+            generateParameters(&A, &x_h, &y_h, &x_d, &y_d, n, k, m);
+            
             uint32_t time = multiplier->multiply(A, x_d, y_d, y_h, n, k, m);
-
-            cudaFreeHost(A);
-            cudaFreeHost(y_h);
-            cudaFree(x_d);
-
-            free(x_h);
-
             configuration.times.push_back(time);
+
+            freeParameters(A, x_h, y_h, x_d, y_d);
         }
 
         std::cout << experiment_number << "," << configuration.toCsv() << std::endl;
