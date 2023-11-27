@@ -8,6 +8,7 @@ project(
   VERSION 1.0
   LANGUAGES CXX)
 
+set (CMAKE_CXX_STANDARD 11)
 find_package(OpenMP)
 if (OPENMP_FOUND)
   set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -23,16 +24,16 @@ include_directories(include)
 add_executable(benchmark src/benchmark.cpp)
 
 # Add tests
-include(FetchContent)
-FetchContent_Declare(
- googletest
- URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-)
-FetchContent_MakeAvailable(googletest)
+# include(FetchContent)
+# FetchContent_Declare(
+#  googletest
+#  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+# )
+# FetchContent_MakeAvailable(googletest)
 
-enable_testing()
+# enable_testing()
 
-add_executable(hw1_tests tests/test_multiplication.cpp)
-target_link_libraries(hw1_tests gtest_main)
-include(GoogleTest)
-gtest_discover_tests(hw1_tests)
+# add_executable(hw1_tests tests/test_multiplication.cpp)
+# target_link_libraries(hw1_tests gtest_main)
+# include(GoogleTest)
+# gtest_discover_tests(hw1_tests)
