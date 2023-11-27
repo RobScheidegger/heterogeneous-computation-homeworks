@@ -129,7 +129,7 @@ class DefaultMultiplierIJKTransposeCached : public IMatrixMultiplier {
 
         float** b_T = b_T_matrix.data;
 
-#pragma omp parallel for num_threads(n_threads)
+#pragma omp parallel for num_threads(n_threads) collapse(2)
         for (uint32_t i = 0; i < N; i++) {
             for (uint32_t j = 0; j < M; j++) {
                 float cij = C[i][j];
