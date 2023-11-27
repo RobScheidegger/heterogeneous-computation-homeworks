@@ -88,6 +88,31 @@ class DefaultMultiplierIJKTranspose : public IMatrixMultiplier {
     }
 };
 
+class DefaultMultiplierIKJ : public IMatrixMultiplier {
+   public:
+    uint64_t multiply(const uint32_t N, const uint32_t M, const uint32_t K, const uint8_t n_threads, float** C,
+                      float** A, float** B) const override {
+        auto start = std::chrono::high_resolution_clock::now();
+
+#pragma omp parallel for num_threads(n_threads) collapse(2)
+        for (uint32_t i = 0; i < N; i++) {
+            for (uint32_t k = 0; k < K; k++) {
+                for (uint32_t j = 0; j < M; j++) {
+                    C[i][j] = C[i][j] + A[i][k] * B[k][j];
+                }
+            }
+        }
+
+        auto end = std::chrono::high_resolution_clock::now();
+
+        return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    }
+
+    std::string getName() const override {
+        return "DefaultMultiplierIKJ";
+    }
+};
+
 class DefaultMultiplierIJKTransposeCached : public IMatrixMultiplier {
    public:
     uint64_t multiply(const uint32_t N, const uint32_t M, const uint32_t K, const uint8_t n_threads, float** C,

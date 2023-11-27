@@ -84,13 +84,11 @@ int main(int argc, char** argv) {
         k_options = {1000};
 
     } else {
-        multipliers = {std::make_shared<DefaultMultiplierIJK>(),
-                       std::make_shared<DefaultMultiplierIJKCached>(),
-                       std::make_shared<DefaultMultiplierJIK>(),
-                       std::make_shared<Collapse2Multiplier>(),
-                       std::make_shared<Collapse3Multiplier>(),
-                       std::make_shared<DefaultMultiplierIJKTranspose>(),
-                       std::make_shared<DefaultMultiplierIJKTransposeCached>()};
+        multipliers = {
+            std::make_shared<DefaultMultiplierIJK>(),          std::make_shared<DefaultMultiplierIJKCached>(),
+            std::make_shared<DefaultMultiplierJIK>(),          std::make_shared<DefaultMultiplierIKJ>(),
+            std::make_shared<Collapse2Multiplier>(),           std::make_shared<Collapse3Multiplier>(),
+            std::make_shared<DefaultMultiplierIJKTranspose>(), std::make_shared<DefaultMultiplierIJKTransposeCached>()};
 
         std::vector<BenchmarkConfiguration> configurations;
 
