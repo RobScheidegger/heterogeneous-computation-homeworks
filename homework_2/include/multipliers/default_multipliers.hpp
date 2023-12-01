@@ -129,7 +129,7 @@ class DefaultMultiplierIJKTransposeCached : public IMatrixMultiplier {
 
         float** b_T = b_T_matrix.data;
 
-#pragma omp parallel for num_threads(n_threads) collapse(2)
+#pragma omp parallel for num_threads(n_threads)
         for (uint32_t i = 0; i < N; i++) {
             for (uint32_t j = 0; j < M; j++) {
                 float cij = C[i][j];
@@ -156,7 +156,7 @@ class DefaultMultiplierJIK : public IMatrixMultiplier {
                       float** A, float** B) const override {
         auto start = std::chrono::high_resolution_clock::now();
 
-#pragma omp parallel for num_threads(n_threads)
+#pragma omp parallel for
         for (uint32_t j = 0; j < M; j++) {
             for (uint32_t i = 0; i < N; i++) {
                 for (uint32_t k = 0; k < K; k++) {

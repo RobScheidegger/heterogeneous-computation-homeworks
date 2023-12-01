@@ -13,8 +13,8 @@
 #include "multipliers/default_multipliers.hpp"
 #include "multipliers/openmp_multipliers.hpp"
 
-#define WARMUP_OPERATIONS 100000
-#define BENCHMARK_REPETITIONS 4
+#define WARMUP_OPERATIONS 1000000
+#define BENCHMARK_REPETITIONS 10
 
 struct BenchmarkConfiguration {
     // Configuration fields
@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
     std::vector<uint32_t> n_options{10, 100, 1000};
     std::vector<uint32_t> m_options{10, 100, 1000};
     std::vector<uint32_t> k_options{10, 100, 1000};
-    std::vector<uint32_t> num_threads_options{4, 16};
+    std::vector<uint32_t> num_threads_options{4, 8};
     std::vector<uint32_t> blocking_options{
         16, 32, 64, 128, 256,
     };
@@ -76,9 +76,7 @@ int main(int argc, char** argv) {
         m_options.push_back(100);
         k_options.push_back(1000);
     } else if (argc == 2 && strcmp(argv[1], "--baseline") == 0) {
-        multipliers = {std::make_shared<DefaultMultiplierIJKCached>(),
-                       std::make_shared<DefaultMultiplierIJKTranspose>(),
-                       std::make_shared<DefaultMultiplierIJKTransposeCached>()};
+        multipliers = {std::make_shared<DefaultMultiplierIJKCached>()};
         n_options = {100};
         m_options = {100};
         k_options = {1000};
@@ -89,59 +87,58 @@ int main(int argc, char** argv) {
             std::make_shared<DefaultMultiplierJIK>(),          std::make_shared<DefaultMultiplierIKJ>(),
             std::make_shared<Collapse2Multiplier>(),           std::make_shared<Collapse3Multiplier>(),
             std::make_shared<DefaultMultiplierIJKTranspose>(), std::make_shared<DefaultMultiplierIJKTransposeCached>()};
+    }
+    std::vector<BenchmarkConfiguration> configurations;
 
-        std::vector<BenchmarkConfiguration> configurations;
+    std::cout << "Creating benchmark configurations..." << std::endl;
 
-        std::cout << "Creating benchmark configurations..." << std::endl;
-
-        // Make all of the required configurations
-        for (auto& n : n_options) {
-            for (auto& m : m_options) {
-                for (auto& k : k_options) {
-                    for (auto& num_threads : num_threads_options) {
-                        for (auto& multiplier : multipliers) {
-                            configurations.emplace_back(n, m, k, num_threads, multiplier);
-                        }
+    // Make all of the required configurations
+    for (auto& n : n_options) {
+        for (auto& m : m_options) {
+            for (auto& k : k_options) {
+                for (auto& num_threads : num_threads_options) {
+                    for (auto& multiplier : multipliers) {
+                        configurations.emplace_back(n, m, k, num_threads, multiplier);
                     }
                 }
             }
         }
-
-        std::cout << "Found " << configurations.size() << " benchmark configurations." << std::endl;
-
-        // Run an experiment for each of the configurations
-        uint32_t experiment_number = 0;
-        for (auto& configuration : configurations) {
-            experiment_number++;
-
-            const uint32_t n = configuration.n;
-            const uint32_t m = configuration.m;
-            const uint32_t k = configuration.k;
-
-            // Warmup with some garbage computation
-            uint32_t garbage = 1;
-            for (uint32_t i = 1; i < WARMUP_OPERATIONS; i++) {
-                garbage *= i;
-            };
-
-            for (uint32_t iteration = 0; iteration < configuration.repetitions; iteration++) {
-
-                Matrix C{n, m};
-                Matrix A{n, k};
-                Matrix B{k, m};
-
-                // Randomly initialize A and B
-                C.randomize();
-                A.randomize();
-                B.randomize();
-
-                const uint64_t time =
-                    configuration.multiplier->multiply(n, m, k, configuration.num_threads, C.data, A.data, B.data);
-                configuration.times.push_back(time);
-            }
-
-            std::cout << experiment_number << "," << configuration.toCsv() << std::endl;
-        }
-        return 0;
     }
+
+    std::cout << "Found " << configurations.size() << " benchmark configurations." << std::endl;
+
+    // Run an experiment for each of the configurations
+    uint32_t experiment_number = 0;
+    for (auto& configuration : configurations) {
+        experiment_number++;
+
+        const uint32_t n = configuration.n;
+        const uint32_t m = configuration.m;
+        const uint32_t k = configuration.k;
+
+        // Warmup with some garbage computation
+        uint32_t garbage = 1;
+        for (uint32_t i = 1; i < WARMUP_OPERATIONS; i++) {
+            garbage *= i;
+        };
+
+        for (uint32_t iteration = 0; iteration < configuration.repetitions; iteration++) {
+
+            Matrix C{n, m};
+            Matrix A{n, k};
+            Matrix B{k, m};
+
+            // Randomly initialize A and B
+            C.randomize();
+            A.randomize();
+            B.randomize();
+
+            const uint64_t time =
+                configuration.multiplier->multiply(n, m, k, configuration.num_threads, C.data, A.data, B.data);
+            configuration.times.push_back(time);
+        }
+
+        std::cout << experiment_number << "," << configuration.toCsv() << std::endl;
+    }
+    return 0;
 }
