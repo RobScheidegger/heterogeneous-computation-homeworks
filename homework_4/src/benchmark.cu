@@ -122,8 +122,9 @@ struct BenchmarkConfiguration {
     std::string toCsv() const {
         auto meanStdDev = getMeanAndStdDev<uint64_t, float>(times);
 
-        return std::to_string(n) + ',' + std::to_string(m) + ',' + std::to_string(k) + ',' + std::to_string(repetitions) + ',' +
-               multiplier->getName() + ',' + std::to_string(meanStdDev.first) + ',' + std::to_string(meanStdDev.second);
+        return std::to_string(n) + ',' + std::to_string(m) + ',' + std::to_string(k) + ',' +
+               std::to_string(repetitions) + ',' + multiplier->getName() + ',' + std::to_string(meanStdDev.first) +
+               ',' + std::to_string(meanStdDev.second);
     }
 };
 
@@ -153,7 +154,7 @@ void safeCudaMemcpy(void* dest, void* src, size_t size, cudaMemcpyKind kind) {
     }
 }
 
-void generateParameters(float **A, float **x_h, float **y_h, float **x_d, float **y_d, int n, int k, int m) {
+void generateParameters(float** A, float** x_h, float** y_h, float** x_d, float** y_d, int n, int k, int m) {
     *x_h = (float*)malloc(k * sizeof(float));
     safeCudaMallocHost((void**)A, n * k * sizeof(float));
     safeCudaMallocHost((void**)y_h, n * sizeof(float));
@@ -176,7 +177,7 @@ void generateParameters(float **A, float **x_h, float **y_h, float **x_d, float 
     safeCudaMemcpy(*y_d, *y_h, n * sizeof(float), cudaMemcpyHostToDevice);
 }
 
-void freeParameters(float* A, float *x_h, float *y_h, float* x_d, float *y_d) {
+void freeParameters(float* A, float* x_h, float* y_h, float* x_d, float* y_d) {
     cudaFreeHost(A);
     cudaFreeHost(y_h);
     cudaFree(x_d);
@@ -186,8 +187,8 @@ void freeParameters(float* A, float *x_h, float *y_h, float* x_d, float *y_d) {
 }
 
 int main() {
-    std::vector<uint32_t> n_options = {1000, 1200, 1400, 1600, 1800, 2000};
-    std::vector<uint32_t> k_options = {1000, 1200, 1400, 1600, 1800, 2000};
+    std::vector<uint32_t> n_options = {1000, 2000};
+    std::vector<uint32_t> k_options = {1000, 2000};
     std::vector<uint32_t> m_options = {1, 2, 3, 4, 5, 6, 7, 8};
     std::vector<IMatrixVectorMultiplier::SharedPtr> multipliers = {std::make_shared<MatrixVectorStreamMultiplier>()};
 
@@ -205,7 +206,8 @@ int main() {
     }
 
     std::cout << "Generated " << configurations.size() << " configurations" << std::endl;
-    std::cout << "n,m,k,reps,multiplier,time_us,stddev_us";
+    std::cout << "n,m,k,reps,multiplier,time_us,stddev_us" << std::endl;
+
     uint32_t experiment_number = 1;
     for (auto& configuration : configurations) {
         const uint32_t n = configuration.n;
@@ -215,15 +217,16 @@ int main() {
 
         float *A, *x_h, *y_h, *x_d, *y_d;
         generateParameters(&A, &x_h, &y_h, &x_d, &y_d, n, k, m);
+        // Warmup rounds to avoid cold start
         for (uint32_t i = 1; i < WARMUP_OPERATIONS; i++) {
             multiplier->multiply(A, x_d, y_d, y_h, n, k, m);
         };
 
-
+        // Actual computation rounds
         for (uint32_t repetition = 0; repetition < configuration.repetitions; repetition++) {
             float *A, *x_h, *y_h, *x_d, *y_d;
             generateParameters(&A, &x_h, &y_h, &x_d, &y_d, n, k, m);
-            
+
             uint32_t time = multiplier->multiply(A, x_d, y_d, y_h, n, k, m);
             configuration.times.push_back(time);
 
