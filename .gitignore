@@ -17,3 +17,4 @@ build
 .cache
 homework_1/Makefile
 homework_2/Makefile
+**/*.nsys-rep

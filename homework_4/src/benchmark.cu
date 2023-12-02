@@ -54,15 +54,19 @@ __global__ void saxby(float* A, float* x, int num_rows, int num_cols, float* y) 
     int col_end_idx = MIN((lane_id + 1) * num_cols / THREADS_PER_WARP, num_cols);
 
     float sum = 0;
-    for (int i = col_start_idx; i < col_end_idx; i++)
-        sum += A[matrix_row_idx * num_cols + i] * x[i];
+    for (int i = col_start_idx; i < col_end_idx; i++) {
+        if (matrix_row_idx * num_cols + i < num_rows * num_cols)
+            sum += A[matrix_row_idx * num_cols + i] * x[i];
+    }
     __syncthreads();
 
     for (int offset = WARP_SIZE / 2; offset > 0; offset >>= 1)
         sum += __shfl_down_sync(0xffffff, sum, offset);
 
     if (lane_id == 0) {
-        y[matrix_row_idx] += sum;
+        if (matrix_row_idx < num_rows) {
+            y[matrix_row_idx] += sum;
+        }
     }
 }
 
