@@ -187,8 +187,8 @@ void freeParameters(float* A, float* x_h, float* y_h, float* x_d, float* y_d) {
 }
 
 int main() {
-    std::vector<uint32_t> n_options = {1000, 2000};
-    std::vector<uint32_t> k_options = {1000, 2000};
+    std::vector<uint32_t> n_options = {1000, 10000};
+    std::vector<uint32_t> k_options = {1000, 10000};
     std::vector<uint32_t> m_options = {1, 2, 3, 4, 5, 6, 7, 8};
     std::vector<IMatrixVectorMultiplier::SharedPtr> multipliers = {std::make_shared<MatrixVectorStreamMultiplier>()};
 
